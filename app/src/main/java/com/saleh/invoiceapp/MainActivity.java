@@ -33,10 +33,24 @@ public class MainActivity extends Activity {
   TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(Color.rgb(28,43,39));return t;}
   EditText field(String hint,int type){EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setTextSize(16);e.setInputType(type);e.setPadding(dp(10),dp(5),dp(10),dp(5));e.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(180,193,186)));return e;}
   LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(dp(12),dp(8),dp(12),dp(8));return l;}
+  @Override public void onBackPressed(){
+    new AlertDialog.Builder(this)
+      .setTitle("الخروج من التطبيق")
+      .setMessage("هل تريد الخروج من تطبيق فواتيري حق البيع والشراء؟")
+      .setNegativeButton("البقاء في التطبيق",(d,w)->d.dismiss())
+      .setPositiveButton("خروج",(d,w)->finish())
+      .setCancelable(true).show();
+  }
   void buildUi(){
     ScrollView scroll=new ScrollView(this); LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
     TextView title=text("فواتيري حق البيع والشراء",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
-    TextView subtitle=text("بيع وشراء • حسابات العملاء • طباعة وPDF وصورة",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
+    TextView subtitle=text("إدارة الفواتير وحسابات العملاء",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
+    LinearLayout home=new LinearLayout(this);home.setOrientation(LinearLayout.VERTICAL);home.setPadding(dp(4),dp(8),dp(4),dp(8));
+    Button newInvoice=button("＋  فاتورة جديدة");home.addView(newInvoice);newInvoice.setOnClickListener(v->{customer.setText("");total.setText("");qty.setText("");item.setText("");paid.setText("");invoiceItems.clear();rebuildInvoice();refreshInvoiceRows();});
+    Button customersButton=button("♙  العملاء وكشوف الحساب");home.addView(customersButton);customersButton.setOnClickListener(v->showHistory());
+    Button receiptButton=button("سند قبض");home.addView(receiptButton);receiptButton.setOnClickListener(v->paymentDialog(true));
+    Button payoutButton=button("سند صرف");home.addView(payoutButton);payoutButton.setOnClickListener(v->paymentDialog(false));
+    root.addView(home);
     customer=field("اسم العميل (اختياري)", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
     LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);
     total=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);first.addView(total,new LinearLayout.LayoutParams(0,dp(52),1));
