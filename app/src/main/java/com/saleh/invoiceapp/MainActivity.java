@@ -46,6 +46,57 @@ public class MainActivity extends Activity {
       .setPositiveButton("خروج",(d,w)->finish())
       .setCancelable(true).show();
   }
+  static final int REQUEST_BACKUP=7301, REQUEST_RESTORE=7302;
+  void openBackupScreen(){
+    isHome=false;currentScreen="backup";
+    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
+    TextView title=text("النسخ الاحتياطي والاستعادة",21);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);title.setTextColor(Color.rgb(23,74,61));root.addView(title);
+    TextView info=text("احفظ نسخة من بيانات الفواتير في ملف على جهازك، أو استعد نسخة سابقة.",14);info.setPadding(dp(4),dp(10),dp(4),dp(10));root.addView(info);
+    Button backup=button("حفظ نسخة احتياطية");styleRound(backup,20,50,16);root.addView(backup);backup.setOnClickListener(v->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/octet-stream");i.putExtra(Intent.EXTRA_TITLE,"Fawatiri-Backup.db");startActivityForResult(i,REQUEST_BACKUP);});
+    Button restore=button("استعادة نسخة احتياطية");styleRound(restore,20,50,16);root.addView(restore);restore.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("استعادة نسخة احتياطية").setMessage("سيتم استبدال البيانات الحالية بالبيانات الموجودة في النسخة المختارة. يُنصح بحفظ نسخة حالية أولاً.").setNegativeButton("إلغاء",null).setPositiveButton("اختيار النسخة",(d,w)->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");startActivityForResult(i,REQUEST_RESTORE);}).show());
+    ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
+  }
+  @Override protected void onActivityResult(int requestCode,int resultCode,Intent data){
+    super.onActivityResult(requestCode,resultCode,data);
+    if(resultCode!=RESULT_OK||data==null||data.getData()==null)return;
+    Uri uri=data.getData();
+    if(requestCode==REQUEST_BACKUP){backupDatabase(uri);return;}
+    if(requestCode==REQUEST_RESTORE){restoreDatabase(uri);}
+  }
+  void backupDatabase(Uri uri){
+    File source=getDatabasePath("invoice_book.db");
+    try{
+      if(db!=null&&db.isOpen())db.execSQL("PRAGMA wal_checkpoint(FULL)");
+      if(db!=null&&db.isOpen())db.close();
+      try(InputStream in=new FileInputStream(source);OutputStream out=getContentResolver().openOutputStream(uri,"w")){
+        if(out==null)throw new IOException("تعذر فتح ملف النسخة");byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);out.flush();
+      }
+      toast("تم حفظ النسخة الاحتياطية بنجاح");
+    }catch(Exception e){toast("تعذر إنشاء النسخة الاحتياطية");}
+    finally{openDatabaseAgain();}
+  }
+  void restoreDatabase(Uri uri){
+    File temp=new File(getCacheDir(),"restore_invoice_book.db");
+    try{
+      try(InputStream in=getContentResolver().openInputStream(uri);OutputStream out=new FileOutputStream(temp)){
+        if(in==null)throw new IOException("تعذر قراءة ملف النسخة");byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);
+      }
+      SQLiteDatabase check=SQLiteDatabase.openDatabase(temp.getAbsolutePath(),null,SQLiteDatabase.OPEN_READONLY);
+      Cursor verify=check.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='invoices'",null);boolean valid=verify.moveToFirst();verify.close();check.close();
+      if(!valid)throw new IOException("ملف النسخة غير صالح");
+      if(db!=null&&db.isOpen())db.close();
+      File target=getDatabasePath("invoice_book.db");
+      new File(target.getAbsolutePath()+"-wal").delete();new File(target.getAbsolutePath()+"-shm").delete();
+      try(InputStream in=new FileInputStream(temp);OutputStream out=new FileOutputStream(target)){byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);out.flush();}
+      openDatabaseAgain();temp.delete();buildUi();toast("تمت استعادة النسخة الاحتياطية");
+    }catch(Exception e){temp.delete();openDatabaseAgain();toast("فشلت الاستعادة؛ لم يتم قبول ملف غير صالح");}
+  }
+  void openDatabaseAgain(){
+    if(db!=null&&db.isOpen())return;
+    db=openOrCreateDatabase("invoice_book.db",MODE_PRIVATE,null);
+    db.execSQL("CREATE TABLE IF NOT EXISTS invoices(id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT, date TEXT, total REAL, paid REAL, details TEXT)");
+  }
   void buildUi(){
     isHome=true;currentScreen="home";
     LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
@@ -64,10 +115,11 @@ public class MainActivity extends Activity {
     Button reports=button("▥  التقارير وجميع الحركات");styleRound(reports,22,48,16);reports.setOnClickListener(v->showReports());
     Button receipt=button("＋  سند قبض");styleRound(receipt,22,48,16);receipt.setOnClickListener(v->paymentDialog(true));
     Button payout=button("−  سند صرف");styleRound(payout,22,48,16);payout.setOnClickListener(v->paymentDialog(false));
+     Button backup=button("⇄  النسخ الاحتياطي والاستعادة");styleRound(backup,22,48,16);backup.setOnClickListener(v->openBackupScreen());
     LinearLayout primary=new LinearLayout(this);primary.setOrientation(LinearLayout.VERTICAL);primary.addView(addInvoice);shortcuts.addView(primary);
     LinearLayout row1=new LinearLayout(this);row1.setOrientation(LinearLayout.HORIZONTAL);row1.addView(history,new LinearLayout.LayoutParams(0,dp(48),1));row1.addView(customers,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row1);
     LinearLayout row2=new LinearLayout(this);row2.setOrientation(LinearLayout.HORIZONTAL);row2.addView(reports,new LinearLayout.LayoutParams(0,dp(48),1));row2.addView(receipt,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row2);
-    LinearLayout row3=new LinearLayout(this);row3.setOrientation(LinearLayout.HORIZONTAL);row3.addView(payout,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row3);root.addView(shortcuts);
+    LinearLayout row3=new LinearLayout(this);row3.setOrientation(LinearLayout.HORIZONTAL);row3.addView(payout,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row3);root.addView(shortcuts);root.addView(backup);
     TextView recent=text("آخر الفواتير",17);recent.setTypeface(null,1);recent.setPadding(0,dp(12),0,dp(4));root.addView(recent);
     Cursor recentRows=db.rawQuery("SELECT id,customer,date,total,paid FROM invoices ORDER BY id DESC LIMIT 5",null);
     int recentCount=0;while(recentRows.moveToNext()){recentCount++;final long invoiceId=recentRows.getLong(0);final String customerName=recentRows.getString(1)==null?"عميل نقدي":recentRows.getString(1);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackgroundColor(Color.WHITE);TextView name=text(customerName,15);TextView detail=text((recentRows.getString(2)==null?"":recentRows.getString(2))+"\n"+money(recentRows.getDouble(3)),12);row.addView(name,new LinearLayout.LayoutParams(0,-2,1));row.addView(detail,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));root.addView(row,lp);row.setOnClickListener(v->showInvoiceDetails(invoiceId));}recentRows.close();
