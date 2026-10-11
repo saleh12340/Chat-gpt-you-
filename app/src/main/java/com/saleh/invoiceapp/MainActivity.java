@@ -49,7 +49,7 @@ public class MainActivity extends Activity {
   static final int REQUEST_BACKUP=7301, REQUEST_RESTORE=7302;
   void openBackupScreen(){
     isHome=false;currentScreen="backup";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("النسخ الاحتياطي والاستعادة",21);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);title.setTextColor(Color.rgb(23,74,61));root.addView(title);
     TextView info=text("احفظ نسخة من بيانات الفواتير في ملف على جهازك، أو استعد نسخة سابقة.",14);info.setPadding(dp(4),dp(10),dp(4),dp(10));root.addView(info);
@@ -99,17 +99,17 @@ public class MainActivity extends Activity {
   }
   void buildUi(){
     isHome=true;currentScreen="home";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     TextView title=text("فواتيري حق البيع والشراء",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
     TextView subtitle=text("لوحة التحكم",14);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
     Cursor c=db.rawQuery("SELECT COUNT(*),COALESCE(SUM(total),0),COALESCE(SUM(total-paid),0) FROM invoices",null);
     int count=0;double sales=0,due=0;if(c.moveToFirst()){count=c.getInt(0);sales=c.getDouble(1);due=c.getDouble(2);}c.close();
     LinearLayout stats=new LinearLayout(this);stats.setOrientation(LinearLayout.VERTICAL);stats.setPadding(0,dp(8),0,dp(8));
     String[][] values={{"عدد الفواتير والحركات",String.valueOf(count)},{"إجمالي المبيعات",money(sales)},{"المبالغ المستحقة",money(due)}};
-    for(String[] value:values){LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);line.setPadding(dp(12),dp(8),dp(12),dp(8));line.setBackgroundColor(Color.WHITE);TextView label=text(value[0],14);TextView amount=text(value[1],17);amount.setTypeface(null,1);amount.setGravity(Gravity.CENTER);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(amount,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));stats.addView(line,lp);}root.addView(stats);
+    for(String[] value:values){LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);line.setPadding(dp(12),dp(8),dp(12),dp(8));line.setBackgroundColor(Color.rgb(30,41,59));TextView label=text(value[0],14);label.setTextColor(Color.WHITE);TextView amount=text(value[1],17);amount.setTextColor(Color.WHITE);amount.setTypeface(null,1);amount.setGravity(Gravity.CENTER);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(amount,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));stats.addView(line,lp);}root.addView(stats);
     TextView section=text("الوظائف الرئيسية",18);section.setTypeface(null,1);root.addView(section);
     LinearLayout shortcuts=new LinearLayout(this);shortcuts.setOrientation(LinearLayout.VERTICAL);shortcuts.setPadding(0,dp(4),0,dp(4));
-    Button addInvoice=button("＋  إضافة فاتورة");styleRound(addInvoice,22,52,18);addInvoice.setOnClickListener(v->buildInvoiceScreen());
+    Button addInvoice=button("＋  إضافة فاتورة");styleRound(addInvoice,22,56,18);addInvoice.setBackground(roundDrawable(Color.rgb(5,150,105),22));addInvoice.setOnClickListener(v->buildInvoiceScreen());
     Button history=button("▤  سجل الفواتير");styleRound(history,22,48,16);history.setOnClickListener(v->showInvoiceHistory());
     Button customers=button("♙  الحسابات والعملاء");styleRound(customers,22,48,16);customers.setOnClickListener(v->showHistory());
     Button reports=button("▥  التقارير وجميع الحركات");styleRound(reports,22,48,16);reports.setOnClickListener(v->showReports());
@@ -122,15 +122,15 @@ public class MainActivity extends Activity {
     LinearLayout row3=new LinearLayout(this);row3.setOrientation(LinearLayout.HORIZONTAL);row3.addView(payout,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row3);root.addView(shortcuts);root.addView(backup);
     TextView recent=text("آخر الفواتير",17);recent.setTypeface(null,1);recent.setPadding(0,dp(12),0,dp(4));root.addView(recent);
     Cursor recentRows=db.rawQuery("SELECT id,customer,date,total,paid FROM invoices ORDER BY id DESC LIMIT 5",null);
-    int recentCount=0;while(recentRows.moveToNext()){recentCount++;final long invoiceId=recentRows.getLong(0);final String customerName=recentRows.getString(1)==null?"عميل نقدي":recentRows.getString(1);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackgroundColor(Color.WHITE);TextView name=text(customerName,15);TextView detail=text((recentRows.getString(2)==null?"":recentRows.getString(2))+"\n"+money(recentRows.getDouble(3)),12);row.addView(name,new LinearLayout.LayoutParams(0,-2,1));row.addView(detail,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));root.addView(row,lp);row.setOnClickListener(v->showInvoiceDetails(invoiceId));}recentRows.close();
+    int recentCount=0;while(recentRows.moveToNext()){recentCount++;final long invoiceId=recentRows.getLong(0);final String customerName=recentRows.getString(1)==null?"عميل نقدي":recentRows.getString(1);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackgroundColor(Color.rgb(30,41,59));TextView name=text(customerName,15);name.setTextColor(Color.WHITE);TextView detail=text((recentRows.getString(2)==null?"":recentRows.getString(2))+"\n"+money(recentRows.getDouble(3)),12);detail.setTextColor(Color.WHITE);row.addView(name,new LinearLayout.LayoutParams(0,-2,1));row.addView(detail,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));root.addView(row,lp);row.setOnClickListener(v->showInvoiceDetails(invoiceId));}recentRows.close();
     if(recentCount==0){TextView empty=text("لا توجد فواتير محفوظة بعد",13);root.addView(empty);}
     ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
   }
   void buildInvoiceScreen(){
     ScrollView scroll=new ScrollView(this);
     isHome=false;currentScreen="invoice";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
-    Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);scroll.addView(root);
+    Button back=button("← رجوع");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
     customer=field("اسم العميل", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
     LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);first.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -176,7 +176,7 @@ public class MainActivity extends Activity {
   void saveInvoice(){if(rowCount==0){toast("أضف صنفاً أولاً");return;}try{double p=Double.parseDouble(paid.getText().toString().isEmpty()?"0":paid.getText().toString());android.content.ContentValues v=new android.content.ContentValues();v.put("customer",customer.getText().toString().trim().isEmpty()?"عميل نقدي":customer.getText().toString().trim());v.put("date",date());v.put("total",invoiceTotal);v.put("paid",p);v.put("details",receiptText());long savedId=db.insert("invoices",null,v);if(savedId==-1){toast("تعذر حفظ الفاتورة؛ لم يتم إنشاء سجل");return;}toast("تم حفظ الفاتورة بنجاح ✓");invoiceItems.clear();rebuildInvoice();refreshInvoiceRows();customer.setText("");total.setText("");qty.setText("");item.setText("");paid.setText("");}catch(Exception e){toast("تعذر الحفظ؛ تحقق من المبلغ المدفوع");}}
   void showInvoiceHistory(){
     isHome=false;currentScreen="invoiceHistory";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("سجل الفواتير والحركات",22);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
     EditText search=field("بحث باسم العميل أو التاريخ",android.text.InputType.TYPE_CLASS_TEXT);root.addView(search);
@@ -190,7 +190,7 @@ public class MainActivity extends Activity {
     Cursor c=db.rawQuery("SELECT customer,date,total,paid,details FROM invoices WHERE id=?",new String[]{String.valueOf(id)});
     if(!c.moveToFirst()){c.close();toast("لم يتم العثور على الفاتورة");showInvoiceHistory();return;}
     String name=c.getString(0)==null?"عميل نقدي":c.getString(0);String dt=c.getString(1)==null?"":c.getString(1);double total=c.getDouble(2),paidValue=c.getDouble(3);String details=c.getString(4)==null?"":c.getString(4);c.close();
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     Button back=button("← سجل الفواتير");root.addView(back);back.setOnClickListener(v->showInvoiceHistory());
     TextView title=text("تفاصيل الفاتورة",22);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
     String[] info={"رقم السجل: "+id,"العميل: "+name,"التاريخ: "+dt,"الإجمالي: "+money(total),"المدفوع: "+money(paidValue),"المتبقي: "+money(total-paidValue)};
@@ -205,27 +205,27 @@ public class MainActivity extends Activity {
     ArrayList<String> names=new ArrayList<>();
     Cursor c=db.rawQuery("SELECT DISTINCT customer FROM invoices WHERE customer IS NOT NULL AND TRIM(customer)<>'' ORDER BY customer COLLATE NOCASE",null);
     while(c.moveToNext()) names.add(c.getString(0)); c.close();
-    LinearLayout root=column(); root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column(); root.setBackgroundColor(Color.WHITE);
     LinearLayout head=new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL);
     Button back=button("← الرئيسية"); back.setLayoutParams(new LinearLayout.LayoutParams(0,dp(46),1)); back.setOnClickListener(v->buildUi());
     TextView title=text("العملاء",23); title.setTypeface(null,1); title.setGravity(Gravity.CENTER); title.setLayoutParams(new LinearLayout.LayoutParams(0,dp(46),1));
     head.addView(back); head.addView(title); root.addView(head);
     EditText search=field("بحث عن عميل",android.text.InputType.TYPE_CLASS_TEXT); root.addView(search);
     LinearLayout list=new LinearLayout(this); list.setOrientation(1); root.addView(list,new LinearLayout.LayoutParams(-1,-2));
-    Runnable refresh=()->{list.removeAllViews();String q=search.getText().toString().trim();for(String name:names){if(!name.contains(q))continue;Cursor x=db.rawQuery("SELECT COUNT(*),COALESCE(SUM(total-paid),0) FROM invoices WHERE customer=?",new String[]{name});int count=0;double bal=0;if(x.moveToFirst()){count=x.getInt(0);bal=x.getDouble(1);}x.close();LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(7),dp(10),dp(7));row.setBackgroundColor(Color.WHITE);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(62));rp.setMargins(0,dp(2),0,dp(2));row.setLayoutParams(rp);row.setOrientation(LinearLayout.HORIZONTAL);TextView nm=text(name,17);nm.setTypeface(null,1);TextView info=text(count+" عملية",12);TextView balance=text("الرصيد: "+money(bal),14);balance.setGravity(Gravity.CENTER);LinearLayout left=new LinearLayout(this);left.setOrientation(1);left.addView(nm);left.addView(info);row.addView(left,new LinearLayout.LayoutParams(0,-2,1));row.addView(balance,new LinearLayout.LayoutParams(0,-2,1));row.setOnClickListener(v->showCustomerAccount(name));list.addView(row);}};
+    Runnable refresh=()->{list.removeAllViews();String q=search.getText().toString().trim();for(String name:names){if(!name.contains(q))continue;Cursor x=db.rawQuery("SELECT COUNT(*),COALESCE(SUM(total-paid),0) FROM invoices WHERE customer=?",new String[]{name});int count=0;double bal=0;if(x.moveToFirst()){count=x.getInt(0);bal=x.getDouble(1);}x.close();LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(7),dp(10),dp(7));row.setBackgroundColor(Color.WHITE);LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(62));rp.setMargins(0,dp(2),0,dp(2));row.setLayoutParams(rp);row.setOrientation(LinearLayout.HORIZONTAL);TextView nm=text(name,17);nm.setTypeface(null,1);TextView info=text(count+" عملية",12);TextView balance=text("الرصيد: "+money(bal),14);balance.setGravity(Gravity.CENTER);LinearLayout left=new LinearLayout(this);left.setOrientation(1);left.addView(nm);left.addView(info);row.addView(left,new LinearLayout.LayoutParams(0,-2,1));row.addView(balance,new LinearLayout.LayoutParams(0,-2,1));row.setOnClickListener(v->showCustomerAccount(name));row.setOnLongClickListener(v->{new AlertDialog.Builder(this).setTitle(name).setItems(new String[]{"فتح حساب العميل","طباعة كشف الحساب"},(d,which)->{if(which==0)showCustomerAccount(name);else printText("كشف حساب العميل\\n"+name);}).show();return true;});list.addView(row);}};
     search.addTextChangedListener(new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int st,int count,int after){}public void onTextChanged(CharSequence s,int st,int before,int count){refresh.run();}public void afterTextChanged(android.text.Editable e){}});
     refresh.run(); ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
   }
   void showReports(){
     isHome=false;currentScreen="reports";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);
-    Button back=button("رجوع للرئيسية");top.addView(back);back.setOnClickListener(v->buildUi());
+    Button back=button("← رجوع");top.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("التقارير",22);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);top.addView(title,new LinearLayout.LayoutParams(0,dp(48),1));root.addView(top);
     Cursor cur=db.rawQuery("SELECT COUNT(*),COALESCE(SUM(total),0),COALESCE(SUM(paid),0),COALESCE(SUM(total-paid),0) FROM invoices",null);
     double total=0,paidSum=0,balance=0;int count=0;if(cur.moveToFirst()){count=cur.getInt(0);total=cur.getDouble(1);paidSum=cur.getDouble(2);balance=cur.getDouble(3);}cur.close();
     String[][] cards={{"عدد الحركات",String.valueOf(count)},{"إجمالي الفواتير",money(total)},{"إجمالي المسدد",money(paidSum)},{"الرصيد المتبقي",money(balance)}};
-    for(String[] card:cards){LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.setPadding(dp(12),dp(8),dp(12),dp(8));box.setBackgroundColor(Color.WHITE);TextView label=text(card[0],13);TextView value=text(card[1],20);value.setTypeface(null,1);box.addView(label);box.addView(value);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(3),0,dp(3));root.addView(box,p);}
+    for(String[] card:cards){LinearLayout box=new LinearLayout(this);box.setOrientation(1);box.setPadding(dp(12),dp(8),dp(12),dp(8));box.setBackgroundColor(Color.rgb(30,41,59));TextView label=text(card[0],13);label.setTextColor(Color.WHITE);TextView value=text(card[1],20);value.setTextColor(Color.WHITE);value.setTypeface(null,1);box.addView(label);box.addView(value);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,-2);p.setMargins(0,dp(3),0,dp(3));root.addView(box,p);}
     TextView listTitle=text("جميع الحركات — الأحدث أولاً",17);listTitle.setTypeface(null,1);root.addView(listTitle);
     LinearLayout header=new LinearLayout(this);header.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);header.setBackgroundColor(Color.rgb(23,74,61));String[] hs={"التاريخ","العميل","المبلغ","التفاصيل"};float[] ws={1.1f,1f,.85f,1.5f};for(int i=0;i<hs.length;i++){TextView t=text(hs[i],11);t.setTextColor(Color.WHITE);t.setTypeface(null,1);t.setGravity(Gravity.CENTER);header.addView(t,new LinearLayout.LayoutParams(0,dp(38),ws[i]));}root.addView(header);
     LinearLayout rows=new LinearLayout(this);rows.setOrientation(1);rows.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
@@ -234,7 +234,7 @@ public class MainActivity extends Activity {
   }
   void showCustomerAccount(String name){
     isHome=false;currentScreen="account";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     Button back=button("← العملاء");root.addView(back);back.setOnClickListener(v->showHistory());
     TextView title=text("حساب العميل: "+name,21);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
     Cursor sum=db.rawQuery("SELECT COALESCE(SUM(total-paid),0),COUNT(*) FROM invoices WHERE customer=?",new String[]{name});double balance=0;int count=0;if(sum.moveToFirst()){balance=sum.getDouble(0);count=sum.getInt(1);}sum.close();
@@ -242,7 +242,7 @@ public class MainActivity extends Activity {
     LinearLayout header=new LinearLayout(this);header.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);header.setBackgroundColor(Color.rgb(23,74,61));String[] labels={"التاريخ","مبلغ العملية","تفاصيل العملية","الرصيد"};float[] weights={1.15f,1f,1.65f,1f};for(int i=0;i<labels.length;i++){TextView t=new TextView(this);t.setText(labels[i]);t.setTextColor(Color.WHITE);t.setTextSize(11);t.setGravity(Gravity.CENTER);t.setTypeface(null,1);header.addView(t,new LinearLayout.LayoutParams(0,dp(42),weights[i]));}root.addView(header);
     LinearLayout list=new LinearLayout(this);list.setOrientation(1);list.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
     Cursor cur=db.rawQuery("SELECT id,date,total,paid,details FROM invoices WHERE customer=? ORDER BY id ASC",new String[]{name});double running=0;ArrayList<String[]> ops=new ArrayList<>();while(cur.moveToNext()){double amount=cur.getDouble(2)-cur.getDouble(3);running+=amount;String dt=cur.getString(1)==null?"":cur.getString(1);String detail=cur.getString(4)==null?"":cur.getString(4).replace("\n"," ").replace("\r"," ");ops.add(new String[]{cur.getString(0),dt,money(amount),detail,money(running)});}cur.close();
-    for(int i=ops.size()-1;i>=0;i--){String[] op=ops.get(i);LinearLayout row=new LinearLayout(this);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(2),dp(3),dp(2),dp(3));row.setBackgroundColor(i%2==0?Color.WHITE:Color.rgb(235,241,237));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(54));rp.setMargins(0,dp(1),0,0);row.setLayoutParams(rp);String[] vals={op[1],op[2],op[3],op[4]};for(int j=0;j<vals.length;j++){TextView t=text(vals[j],10);t.setGravity(Gravity.CENTER);t.setMaxLines(2);t.setEllipsize(android.text.TextUtils.TruncateAt.END);row.addView(t,new LinearLayout.LayoutParams(0,-1,weights[j]));}row.setOnClickListener(v->operationDialog(name,op));list.addView(row);}
+    for(int i=ops.size()-1;i>=0;i--){String[] op=ops.get(i);LinearLayout row=new LinearLayout(this);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(2),dp(3),dp(2),dp(3));row.setBackgroundColor(i%2==0?Color.WHITE:Color.rgb(235,241,237));LinearLayout.LayoutParams rp=new LinearLayout.LayoutParams(-1,dp(54));rp.setMargins(0,dp(1),0,0);row.setLayoutParams(rp);String[] vals={op[1],op[2],op[3],op[4]};for(int j=0;j<vals.length;j++){TextView t=text(vals[j],10);t.setGravity(Gravity.CENTER);t.setMaxLines(2);t.setEllipsize(android.text.TextUtils.TruncateAt.END);row.addView(t,new LinearLayout.LayoutParams(0,-1,weights[j]));}row.setOnLongClickListener(v->{operationDialog(name,op);return true;});list.addView(row);}
     root.addView(list);ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
   }
   void operationDialog(String name,String[] op){
