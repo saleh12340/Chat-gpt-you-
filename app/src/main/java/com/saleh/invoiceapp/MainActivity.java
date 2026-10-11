@@ -170,6 +170,11 @@ public class MainActivity extends Activity {
       ||!columnExists(db,"transactions","ID")||!columnExists(db,"transactions","cus_id")
       ||!columnExists(db,"transactions","in")||!columnExists(db,"transactions","out")
       ||!columnExists(db,"transactions","date_")||!columnExists(db,"transactions","remarks"))return;
+    Cursor importedCheck=db.rawQuery("SELECT COUNT(*) FROM invoices WHERE source_tx_id IS NOT NULL",null);
+    long importedBefore=0;if(importedCheck.moveToFirst())importedBefore=importedCheck.getLong(0);importedCheck.close();
+    Cursor sourceCheck=db.rawQuery("SELECT COUNT(*) FROM transactions",null);
+    long sourceCount=0;if(sourceCheck.moveToFirst())sourceCount=sourceCheck.getLong(0);sourceCheck.close();
+    if(importedBefore>=sourceCount)return;
     db.beginTransaction();
     Cursor cur=null;
     try{
