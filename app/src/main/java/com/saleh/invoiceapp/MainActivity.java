@@ -80,7 +80,6 @@ public class MainActivity extends Activity {
     LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
     Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
-    TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
     customer=field("اسم العميل", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
     LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);first.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
     total=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);total.setGravity(Gravity.CENTER);first.addView(total,new LinearLayout.LayoutParams(0,dp(48),1.05f));
