@@ -42,7 +42,7 @@ public class MainActivity extends Activity {
     }
     new AlertDialog.Builder(this)
       .setTitle("الخروج من التطبيق")
-      .setMessage("هل تريد الخروج من تطبيق فواتيري حق البيع والشراء؟")
+      .setMessage("هل تريد الخروج من تطبيق بقالة العزي للمواد الغذائية؟")
       .setNegativeButton("إلغاء",(d,w)->d.dismiss())
       .setPositiveButton("خروج",(d,w)->finish())
       .setCancelable(true).show();
@@ -101,7 +101,7 @@ public class MainActivity extends Activity {
   void buildUi(){
     isHome=true;currentScreen="home";
     LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
-    TextView title=text("فواتيري حق البيع والشراء",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
+    TextView title=text("بقالة العزي للمواد الغذائية",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
     TextView subtitle=text("لوحة التحكم",14);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
     Cursor c=db.rawQuery("SELECT COUNT(*),COALESCE(SUM(total),0),COALESCE(SUM(total-paid),0) FROM invoices",null);
     int count=0;double sales=0,due=0;if(c.moveToFirst()){count=c.getInt(0);sales=c.getDouble(1);due=c.getDouble(2);}c.close();
