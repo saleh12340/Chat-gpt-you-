@@ -23,7 +23,7 @@ public class MainActivity extends Activity {
   static class InvoiceItem { String name; double qty,total; InvoiceItem(String n,double q,double t){name=n;qty=q;total=t;} }
   ArrayList<InvoiceItem> invoiceItems = new ArrayList<>();
   StringBuilder invoice = new StringBuilder();
-  double invoiceTotal=0; int rowCount=0;
+  double invoiceTotal=0; int rowCount=0; boolean isHome=true; String currentScreen="home";
   int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
   public void onCreate(Bundle b){super.onCreate(b); getWindow().setStatusBarColor(Color.rgb(23,54,48)); getWindow().setNavigationBarColor(Color.BLACK);
     db=openOrCreateDatabase("invoice_book.db",MODE_PRIVATE,null);
@@ -34,24 +34,47 @@ public class MainActivity extends Activity {
   EditText field(String hint,int type){EditText e=new EditText(this);e.setSingleLine(true);e.setHint(hint);e.setTextSize(16);e.setInputType(type);e.setPadding(dp(10),dp(5),dp(10),dp(5));e.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(180,193,186)));return e;}
   LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(dp(12),dp(8),dp(12),dp(8));return l;}
   @Override public void onBackPressed(){
+    if(!isHome){
+      if("account".equals(currentScreen)){showHistory();return;}
+      buildUi();return;
+    }
     new AlertDialog.Builder(this)
       .setTitle("الخروج من التطبيق")
       .setMessage("هل تريد الخروج من تطبيق فواتيري حق البيع والشراء؟")
-      .setNegativeButton("البقاء في التطبيق",(d,w)->d.dismiss())
+      .setNegativeButton("إلغاء",(d,w)->d.dismiss())
       .setPositiveButton("خروج",(d,w)->finish())
       .setCancelable(true).show();
   }
   void buildUi(){
-    ScrollView scroll=new ScrollView(this); LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
+    isHome=true;currentScreen="home";
+    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
     TextView title=text("فواتيري حق البيع والشراء",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
-    TextView subtitle=text("إدارة الفواتير وحسابات العملاء",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
-    LinearLayout home=new LinearLayout(this);home.setOrientation(LinearLayout.VERTICAL);home.setPadding(dp(4),dp(8),dp(4),dp(8));
-    Button newInvoice=button("＋  فاتورة جديدة");home.addView(newInvoice);newInvoice.setOnClickListener(v->{customer.setText("");total.setText("");qty.setText("");item.setText("");paid.setText("");invoiceItems.clear();rebuildInvoice();refreshInvoiceRows();});
-    Button customersButton=button("♙  العملاء وكشوف الحساب");home.addView(customersButton);customersButton.setOnClickListener(v->showHistory());
-    Button reportsButton=button("▤  التقارير وجميع الحركات");home.addView(reportsButton);reportsButton.setOnClickListener(v->showReports());
-    Button receiptButton=button("سند قبض");home.addView(receiptButton);receiptButton.setOnClickListener(v->paymentDialog(true));
-    Button payoutButton=button("سند صرف");home.addView(payoutButton);payoutButton.setOnClickListener(v->paymentDialog(false));
-    root.addView(home);
+    TextView subtitle=text("لوحة التحكم",14);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
+    Cursor c=db.rawQuery("SELECT COUNT(*),COALESCE(SUM(total),0),COALESCE(SUM(total-paid),0) FROM invoices",null);
+    int count=0;double sales=0,due=0;if(c.moveToFirst()){count=c.getInt(0);sales=c.getDouble(1);due=c.getDouble(2);}c.close();
+    LinearLayout stats=new LinearLayout(this);stats.setOrientation(LinearLayout.VERTICAL);stats.setPadding(0,dp(8),0,dp(8));
+    String[][] values={{"عدد الفواتير والحركات",String.valueOf(count)},{"إجمالي المبيعات",money(sales)},{"المبالغ المستحقة",money(due)}};
+    for(String[] value:values){LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);line.setPadding(dp(12),dp(8),dp(12),dp(8));line.setBackgroundColor(Color.WHITE);TextView label=text(value[0],14);TextView amount=text(value[1],17);amount.setTypeface(null,1);amount.setGravity(Gravity.CENTER);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(amount,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));stats.addView(line,lp);}root.addView(stats);
+    TextView section=text("الوظائف الرئيسية",18);section.setTypeface(null,1);root.addView(section);
+    Button addInvoice=button("＋  إضافة فاتورة");root.addView(addInvoice);addInvoice.setOnClickListener(v->buildInvoiceScreen());
+    Button history=button("▤  سجل الفواتير");root.addView(history);history.setOnClickListener(v->showReports());
+    Button customers=button("♙  الحسابات والعملاء");root.addView(customers);customers.setOnClickListener(v->showHistory());
+    Button reports=button("▥  التقارير وجميع الحركات");root.addView(reports);reports.setOnClickListener(v->showReports());
+    Button receipt=button("＋  سند قبض");root.addView(receipt);receipt.setOnClickListener(v->paymentDialog(true));
+    Button payout=button("−  سند صرف");root.addView(payout);payout.setOnClickListener(v->paymentDialog(false));
+    TextView recent=text("آخر الفواتير",17);recent.setTypeface(null,1);recent.setPadding(0,dp(12),0,dp(4));root.addView(recent);
+    Cursor recentRows=db.rawQuery("SELECT id,customer,date,total,paid FROM invoices ORDER BY id DESC LIMIT 5",null);
+    int recentCount=0;while(recentRows.moveToNext()){recentCount++;final String customerName=recentRows.getString(1)==null?"عميل نقدي":recentRows.getString(1);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackgroundColor(Color.WHITE);TextView name=text(customerName,15);TextView detail=text((recentRows.getString(2)==null?"":recentRows.getString(2))+"\n"+money(recentRows.getDouble(3)),12);row.addView(name,new LinearLayout.LayoutParams(0,-2,1));row.addView(detail,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));root.addView(row,lp);row.setOnClickListener(v->showReports());}recentRows.close();
+    if(recentCount==0){TextView empty=text("لا توجد فواتير محفوظة بعد",13);root.addView(empty);}
+    ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
+  }
+  void buildInvoiceScreen(){
+    ScrollView scroll=new ScrollView(this); LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
+    isHome=false;currentScreen="invoice";
+    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
+    TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
+    TextView subtitle=text("أدخل الأصناف ثم احفظ الفاتورة",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
     customer=field("اسم العميل (اختياري)", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
     LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);
     total=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);first.addView(total,new LinearLayout.LayoutParams(0,dp(52),1));
@@ -89,14 +112,15 @@ public class MainActivity extends Activity {
   String money(double d){return String.format(Locale.US,"%,.2f",d);}
   String date(){return new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.getDefault()).format(new Date());}
   String receiptText(){String c=customer.getText().toString().trim();if(c.isEmpty())c="عميل نقدي";double p=0;try{p=Double.parseDouble(paid.getText().toString());}catch(Exception e){}return "        بقالة / فاتورتي\n------------------------------\nالعميل: "+c+"\nالتاريخ: "+date()+"\n------------------------------\n"+invoice+"------------------------------\nالإجمالي: "+money(invoiceTotal)+"\nالمدفوع: "+money(p)+"\nالمتبقي: "+money(invoiceTotal-p)+"\n";}
-  void saveInvoice(){if(rowCount==0){toast("أضف صنفاً أولاً");return;}try{double p=Double.parseDouble(paid.getText().toString().isEmpty()?"0":paid.getText().toString());android.content.ContentValues v=new android.content.ContentValues();v.put("customer",customer.getText().toString().trim().isEmpty()?"عميل نقدي":customer.getText().toString().trim());v.put("date",date());v.put("total",invoiceTotal);v.put("paid",p);v.put("details",receiptText());db.insert("invoices",null,v);toast("تم حفظ الفاتورة في حساب العميل");}catch(Exception e){toast("تعذر الحفظ؛ تحقق من المبلغ المدفوع");}}
+  void saveInvoice(){if(rowCount==0){toast("أضف صنفاً أولاً");return;}try{double p=Double.parseDouble(paid.getText().toString().isEmpty()?"0":paid.getText().toString());android.content.ContentValues v=new android.content.ContentValues();v.put("customer",customer.getText().toString().trim().isEmpty()?"عميل نقدي":customer.getText().toString().trim());v.put("date",date());v.put("total",invoiceTotal);v.put("paid",p);v.put("details",receiptText());long savedId=db.insert("invoices",null,v);if(savedId==-1){toast("تعذر حفظ الفاتورة؛ لم يتم إنشاء سجل");return;}toast("تم حفظ الفاتورة بنجاح ✓");invoiceItems.clear();rebuildInvoice();refreshInvoiceRows();customer.setText("");total.setText("");qty.setText("");item.setText("");paid.setText("");}catch(Exception e){toast("تعذر الحفظ؛ تحقق من المبلغ المدفوع");}}
   void showHistory(){
+    isHome=false;currentScreen="customers";
     ArrayList<String> names=new ArrayList<>();
     Cursor c=db.rawQuery("SELECT DISTINCT customer FROM invoices WHERE customer IS NOT NULL AND TRIM(customer)<>'' ORDER BY customer COLLATE NOCASE",null);
     while(c.moveToNext()) names.add(c.getString(0)); c.close();
     LinearLayout root=column(); root.setBackgroundColor(Color.rgb(247,248,244));
     LinearLayout head=new LinearLayout(this); head.setGravity(Gravity.CENTER_VERTICAL);
-    Button back=button("رجوع للفواتير"); back.setLayoutParams(new LinearLayout.LayoutParams(0,dp(46),1)); back.setOnClickListener(v->buildUi());
+    Button back=button("← الرئيسية"); back.setLayoutParams(new LinearLayout.LayoutParams(0,dp(46),1)); back.setOnClickListener(v->buildUi());
     TextView title=text("العملاء",23); title.setTypeface(null,1); title.setGravity(Gravity.CENTER); title.setLayoutParams(new LinearLayout.LayoutParams(0,dp(46),1));
     head.addView(back); head.addView(title); root.addView(head);
     EditText search=field("بحث عن عميل",android.text.InputType.TYPE_CLASS_TEXT); root.addView(search);
@@ -106,6 +130,7 @@ public class MainActivity extends Activity {
     refresh.run(); ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
   }
   void showReports(){
+    isHome=false;currentScreen="reports";
     LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
     LinearLayout top=new LinearLayout(this);top.setGravity(Gravity.CENTER_VERTICAL);
     Button back=button("رجوع للرئيسية");top.addView(back);back.setOnClickListener(v->buildUi());
@@ -121,6 +146,7 @@ public class MainActivity extends Activity {
     ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
   }
   void showCustomerAccount(String name){
+    isHome=false;currentScreen="account";
     LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
     Button back=button("← العملاء");root.addView(back);back.setOnClickListener(v->showHistory());
     TextView title=text("حساب العميل: "+name,21);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
