@@ -69,9 +69,9 @@ public class MainActivity extends Activity {
     ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
   }
   void buildInvoiceScreen(){
-    ScrollView scroll=new ScrollView(this); LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
+    ScrollView scroll=new ScrollView(this);
     isHome=false;currentScreen="invoice";
-    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));
+    LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
     Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
     TextView subtitle=text("أدخل الأصناف ثم احفظ الفاتورة",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
