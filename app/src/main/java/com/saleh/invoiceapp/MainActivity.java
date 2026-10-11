@@ -57,12 +57,17 @@ public class MainActivity extends Activity {
     String[][] values={{"عدد الفواتير والحركات",String.valueOf(count)},{"إجمالي المبيعات",money(sales)},{"المبالغ المستحقة",money(due)}};
     for(String[] value:values){LinearLayout line=new LinearLayout(this);line.setGravity(Gravity.CENTER_VERTICAL);line.setPadding(dp(12),dp(8),dp(12),dp(8));line.setBackgroundColor(Color.WHITE);TextView label=text(value[0],14);TextView amount=text(value[1],17);amount.setTypeface(null,1);amount.setGravity(Gravity.CENTER);line.addView(label,new LinearLayout.LayoutParams(0,-2,1));line.addView(amount,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));stats.addView(line,lp);}root.addView(stats);
     TextView section=text("الوظائف الرئيسية",18);section.setTypeface(null,1);root.addView(section);
-    Button addInvoice=button("＋  إضافة فاتورة");root.addView(addInvoice);addInvoice.setOnClickListener(v->buildInvoiceScreen());
-    Button history=button("▤  سجل الفواتير");root.addView(history);history.setOnClickListener(v->showInvoiceHistory());
-    Button customers=button("♙  الحسابات والعملاء");root.addView(customers);customers.setOnClickListener(v->showHistory());
-    Button reports=button("▥  التقارير وجميع الحركات");root.addView(reports);reports.setOnClickListener(v->showReports());
-    Button receipt=button("＋  سند قبض");root.addView(receipt);receipt.setOnClickListener(v->paymentDialog(true));
-    Button payout=button("−  سند صرف");root.addView(payout);payout.setOnClickListener(v->paymentDialog(false));
+    LinearLayout shortcuts=new LinearLayout(this);shortcuts.setOrientation(LinearLayout.VERTICAL);shortcuts.setPadding(0,dp(4),0,dp(4));
+    Button addInvoice=button("＋  إضافة فاتورة");styleRound(addInvoice,22,52,18);addInvoice.setOnClickListener(v->buildInvoiceScreen());
+    Button history=button("▤  سجل الفواتير");styleRound(history,22,48,16);history.setOnClickListener(v->showInvoiceHistory());
+    Button customers=button("♙  الحسابات والعملاء");styleRound(customers,22,48,16);customers.setOnClickListener(v->showHistory());
+    Button reports=button("▥  التقارير وجميع الحركات");styleRound(reports,22,48,16);reports.setOnClickListener(v->showReports());
+    Button receipt=button("＋  سند قبض");styleRound(receipt,22,48,16);receipt.setOnClickListener(v->paymentDialog(true));
+    Button payout=button("−  سند صرف");styleRound(payout,22,48,16);payout.setOnClickListener(v->paymentDialog(false));
+    LinearLayout primary=new LinearLayout(this);primary.setOrientation(LinearLayout.VERTICAL);primary.addView(addInvoice);shortcuts.addView(primary);
+    LinearLayout row1=new LinearLayout(this);row1.setOrientation(LinearLayout.HORIZONTAL);row1.addView(history,new LinearLayout.LayoutParams(0,dp(48),1));row1.addView(customers,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row1);
+    LinearLayout row2=new LinearLayout(this);row2.setOrientation(LinearLayout.HORIZONTAL);row2.addView(reports,new LinearLayout.LayoutParams(0,dp(48),1));row2.addView(receipt,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row2);
+    LinearLayout row3=new LinearLayout(this);row3.setOrientation(LinearLayout.HORIZONTAL);row3.addView(payout,new LinearLayout.LayoutParams(0,dp(48),1));shortcuts.addView(row3);root.addView(shortcuts);
     TextView recent=text("آخر الفواتير",17);recent.setTypeface(null,1);recent.setPadding(0,dp(12),0,dp(4));root.addView(recent);
     Cursor recentRows=db.rawQuery("SELECT id,customer,date,total,paid FROM invoices ORDER BY id DESC LIMIT 5",null);
     int recentCount=0;while(recentRows.moveToNext()){recentCount++;final long invoiceId=recentRows.getLong(0);final String customerName=recentRows.getString(1)==null?"عميل نقدي":recentRows.getString(1);LinearLayout row=new LinearLayout(this);row.setGravity(Gravity.CENTER_VERTICAL);row.setPadding(dp(10),dp(8),dp(10),dp(8));row.setBackgroundColor(Color.WHITE);TextView name=text(customerName,15);TextView detail=text((recentRows.getString(2)==null?"":recentRows.getString(2))+"\n"+money(recentRows.getDouble(3)),12);row.addView(name,new LinearLayout.LayoutParams(0,-2,1));row.addView(detail,new LinearLayout.LayoutParams(0,-2,1));LinearLayout.LayoutParams lp=new LinearLayout.LayoutParams(-1,-2);lp.setMargins(0,dp(2),0,dp(2));root.addView(row,lp);row.setOnClickListener(v->showInvoiceDetails(invoiceId));}recentRows.close();
@@ -75,32 +80,36 @@ public class MainActivity extends Activity {
     LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
     Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
-    TextView subtitle=text("أدخل الأصناف ثم احفظ الفاتورة",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
-    customer=field("اسم العميل (اختياري)", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
-    LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);
-    total=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);first.addView(total,new LinearLayout.LayoutParams(0,dp(52),1));
-    qty=field("الكمية",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);first.addView(qty,new LinearLayout.LayoutParams(0,dp(52),1));root.addView(first);
-    LinearLayout second=new LinearLayout(this);second.setOrientation(LinearLayout.HORIZONTAL);
-    item=field("اسم الصنف",android.text.InputType.TYPE_CLASS_TEXT);second.addView(item,new LinearLayout.LayoutParams(0,dp(52),2));
-    unit=text("سعر الوحدة —",15);unit.setGravity(Gravity.CENTER);second.addView(unit,new LinearLayout.LayoutParams(0,dp(52),1));root.addView(second);
+    TextView title=text("إضافة فاتورة",22);title.setTextColor(Color.rgb(23,74,61));title.setTypeface(null,1);title.setGravity(Gravity.CENTER);root.addView(title);
+    customer=field("اسم العميل", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
+    LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);first.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);
+    total=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);total.setGravity(Gravity.CENTER);first.addView(total,new LinearLayout.LayoutParams(0,dp(48),1.05f));
+    qty=field("الكمية",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);qty.setGravity(Gravity.CENTER);first.addView(qty,new LinearLayout.LayoutParams(0,dp(48),.8f));
+    item=field("التفاصيل",android.text.InputType.TYPE_CLASS_TEXT);item.setGravity(Gravity.CENTER);first.addView(item,new LinearLayout.LayoutParams(0,dp(48),1.55f));root.addView(first);
+    unit=text("سعر الوحدة —",14);unit.setGravity(Gravity.CENTER);unit.setTextColor(Color.rgb(23,74,61));unit.setBackground(roundDrawable(Color.WHITE,16));LinearLayout.LayoutParams unitLp=new LinearLayout.LayoutParams(-1,dp(38));unitLp.setMargins(dp(4),dp(2),dp(4),dp(5));root.addView(unit,unitLp);
     total.addTextChangedListener(watch());qty.addTextChangedListener(watch());
-    Button add=button("إضافة الصنف");root.addView(add);add.setOnClickListener(v->addItem());
-    rows=text("الأصناف المسجلة — اضغط على أي صف لتعديله",14);rows.setPadding(0,dp(8),0,dp(8));root.addView(rows);
+    Button add=button("إضافة الصنف");styleRound(add,22,48,17);root.addView(add);add.setOnClickListener(v->addItem());
+    rows=text("الأصناف",14);rows.setPadding(0,dp(5),0,dp(5));root.addView(rows);
     renderInvoiceRows(root);
-    summary=text("الإجمالي: 0",18);summary.setTypeface(null,1);root.addView(summary);
-    paid=field("المبلغ المدفوع",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);root.addView(paid);
+    summary=text("الإجمالي: 0",17);summary.setTypeface(null,1);root.addView(summary);
+    paid=field("المدفوع",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);root.addView(paid);
     LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.VERTICAL);
-    Button save=button("حفظ الفاتورة في حساب العميل");actions.addView(save);save.setOnClickListener(v->saveInvoice());
-    Button pdf=button("تصدير PDF عالي الدقة");actions.addView(pdf);pdf.setOnClickListener(v->exportPdf());
-    Button image=button("حفظ صورة الفاتورة");actions.addView(image);image.setOnClickListener(v->exportImage());
-    Button print=button("طباعة حرارية / اختيار الطابعة");actions.addView(print);print.setOnClickListener(v->printInvoice());
-    Button history=button("فواتير وعمليات العملاء");actions.addView(history);history.setOnClickListener(v->showHistory());
-    Button receipt=button("تسجيل سند قبض");actions.addView(receipt);receipt.setOnClickListener(v->paymentDialog(true));
-    Button expense=button("تسجيل سند صرف");actions.addView(expense);expense.setOnClickListener(v->paymentDialog(false));
+    Button save=button("حفظ الفاتورة");styleRound(save,20,42,15);actions.addView(save);save.setOnClickListener(v->saveInvoice());
+    LinearLayout actionRow1=new LinearLayout(this);actionRow1.setOrientation(LinearLayout.HORIZONTAL);
+    Button pdf=button("PDF");styleRound(pdf,18,38,13);actionRow1.addView(pdf,new LinearLayout.LayoutParams(0,dp(38),1));pdf.setOnClickListener(v->exportPdf());
+    Button image=button("صورة");styleRound(image,18,38,13);actionRow1.addView(image,new LinearLayout.LayoutParams(0,dp(38),1));image.setOnClickListener(v->exportImage());actions.addView(actionRow1);
+    LinearLayout actionRow2=new LinearLayout(this);actionRow2.setOrientation(LinearLayout.HORIZONTAL);
+    Button print=button("طباعة");styleRound(print,18,38,13);actionRow2.addView(print,new LinearLayout.LayoutParams(0,dp(38),1));print.setOnClickListener(v->printInvoice());
+    Button history=button("الفواتير والعملاء");styleRound(history,18,38,13);actionRow2.addView(history,new LinearLayout.LayoutParams(0,dp(38),1));history.setOnClickListener(v->showHistory());actions.addView(actionRow2);
+    LinearLayout actionRow3=new LinearLayout(this);actionRow3.setOrientation(LinearLayout.HORIZONTAL);
+    Button receipt=button("سند قبض");styleRound(receipt,18,38,13);actionRow3.addView(receipt,new LinearLayout.LayoutParams(0,dp(38),1));receipt.setOnClickListener(v->paymentDialog(true));
+    Button expense=button("سند صرف");styleRound(expense,18,38,13);actionRow3.addView(expense,new LinearLayout.LayoutParams(0,dp(38),1));expense.setOnClickListener(v->paymentDialog(false));actions.addView(actionRow3);
     root.addView(actions);setContentView(scroll);
   }
   android.text.TextWatcher watch(){return new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){}public void onTextChanged(CharSequence s,int st,int before,int count){try{double t=Double.parseDouble(total.getText().toString()),q=Double.parseDouble(qty.getText().toString());unit.setText(q==0?"سعر الوحدة —":String.format(Locale.US,"%.2f",t/q));}catch(Exception e){unit.setText("سعر الوحدة —");}}public void afterTextChanged(android.text.Editable e){}};}
-  Button button(String s){Button b=new Button(this);b.setText(s);b.setTextColor(Color.WHITE);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(23,74,61)));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(46));p.setMargins(0,dp(3),0,dp(3));b.setLayoutParams(p);return b;}
+  android.graphics.drawable.GradientDrawable roundDrawable(int color,int radius){android.graphics.drawable.GradientDrawable d=new android.graphics.drawable.GradientDrawable();d.setColor(color);d.setCornerRadius(dp(radius));return d;}
+  void styleRound(Button b,int radius,int height,int textSize){b.setTextSize(textSize);b.setAllCaps(false);b.setMinHeight(0);b.setMinimumHeight(0);b.setPadding(dp(6),0,dp(6),0);b.setBackground(roundDrawable(Color.rgb(23,74,61),radius));b.setTextColor(Color.WHITE);LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(height));p.setMargins(dp(3),dp(2),dp(3),dp(2));b.setLayoutParams(p);}
+  Button button(String s){Button b=new Button(this);b.setText(s);b.setTextColor(Color.WHITE);b.setAllCaps(false);b.setBackground(roundDrawable(Color.rgb(23,74,61),18));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(42));p.setMargins(dp(2),dp(2),dp(2),dp(2));b.setLayoutParams(p);return b;}
   void addItem(){try{double t=Double.parseDouble(total.getText().toString().replace(",","")),q=Double.parseDouble(qty.getText().toString().replace(",",""));String n=item.getText().toString().trim();if(n.isEmpty()||q<=0||t<0){toast("أدخل الصنف والكمية والإجمالي");return;}invoiceItems.add(new InvoiceItem(n,q,t));rebuildInvoice();total.setText("");qty.setText("");item.setText("");refreshInvoiceRows();}catch(Exception e){toast("تحقق من الإجمالي والكمية");}}
   void rebuildInvoice(){invoice.setLength(0);invoiceTotal=0;rowCount=invoiceItems.size();for(InvoiceItem it:invoiceItems){double u=it.qty==0?0:it.total/it.qty;invoice.append(money(it.total)).append("  |  ").append(it.qty).append("  |  ").append(it.name).append("  |  ").append(money(u)).append("\\n");invoiceTotal+=it.total;}if(rows!=null)rows.setText("الأصناف المسجلة ("+rowCount+") — اضغط على الصف للتعديل");if(summary!=null)summary.setText("الإجمالي: "+money(invoiceTotal)+"  •  الأصناف: "+rowCount);}
   void renderInvoiceRows(LinearLayout host){if(host!=null){LinearLayout table=new LinearLayout(this);table.setOrientation(1);table.setTag("invoice_items_table");host.addView(table,new LinearLayout.LayoutParams(-1,-2));populateInvoiceTable(table);}}
