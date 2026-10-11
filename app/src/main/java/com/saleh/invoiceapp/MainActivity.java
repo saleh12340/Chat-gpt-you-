@@ -53,7 +53,7 @@ public class MainActivity extends Activity {
     LinearLayout root=column();root.setBackgroundColor(Color.WHITE);
     Button back=button("← الرئيسية");root.addView(back);back.setOnClickListener(v->buildUi());
     TextView title=text("النسخ الاحتياطي والاستعادة",21);title.setTypeface(null,1);title.setGravity(Gravity.CENTER);title.setTextColor(Color.rgb(23,74,61));root.addView(title);
-    TextView info=text("احفظ نسخة من بيانات الفواتير في ملف على جهازك، أو استعد نسخة سابقة.",14);info.setPadding(dp(4),dp(10),dp(4),dp(10));root.addView(info);
+    TextView info=text("احفظ نسخة من بيانات التطبيق، أو استعد ملف فواتير أو قاعدة عملاء وحركات محفوظة بصيغة SQLite (.db).",14);info.setPadding(dp(4),dp(10),dp(4),dp(10));root.addView(info);
     Button backup=button("حفظ نسخة احتياطية");styleRound(backup,20,50,16);root.addView(backup);backup.setOnClickListener(v->{Intent i=new Intent(Intent.ACTION_CREATE_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("application/octet-stream");i.putExtra(Intent.EXTRA_TITLE,"Fawatiri-Backup.db");startActivityForResult(i,REQUEST_BACKUP);});
     Button restore=button("استعادة نسخة احتياطية");styleRound(restore,20,50,16);root.addView(restore);restore.setOnClickListener(v->new AlertDialog.Builder(this).setTitle("استعادة نسخة احتياطية").setMessage("سيتم استبدال البيانات الحالية بالبيانات الموجودة في النسخة المختارة. يُنصح بحفظ نسخة حالية أولاً.").setNegativeButton("إلغاء",null).setPositiveButton("اختيار النسخة",(d,w)->{Intent i=new Intent(Intent.ACTION_OPEN_DOCUMENT);i.addCategory(Intent.CATEGORY_OPENABLE);i.setType("*/*");startActivityForResult(i,REQUEST_RESTORE);}).show());
     ScrollView scroll=new ScrollView(this);scroll.addView(root);setContentView(scroll);
