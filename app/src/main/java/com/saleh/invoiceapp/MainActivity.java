@@ -28,7 +28,7 @@ public class MainActivity extends Activity {
   int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
   public void onCreate(Bundle b){super.onCreate(b); getWindow().setStatusBarColor(Color.rgb(23,54,48)); getWindow().setNavigationBarColor(Color.BLACK);
     db=openOrCreateDatabase("invoice_book.db",MODE_PRIVATE,null);
-    db.execSQL("CREATE TABLE IF NOT EXISTS invoices(id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT, date TEXT, total REAL, paid REAL, details TEXT)");
+    ensureInvoiceSchemaAndImport();
     buildUi();
   }
   TextView text(String s,int size){TextView t=new TextView(this);t.setText(s);t.setTextSize(size);t.setTextColor(Color.rgb(28,43,39));return t;}
@@ -77,26 +77,129 @@ public class MainActivity extends Activity {
     }catch(Exception e){toast("تعذر إنشاء النسخة الاحتياطية");}
     finally{openDatabaseAgain();}
   }
+  boolean tableExists(SQLiteDatabase database,String table){
+    Cursor c=database.rawQuery("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",new String[]{table});
+    boolean exists=c.moveToFirst();c.close();return exists;
+  }
+  boolean columnExists(SQLiteDatabase database,String table,String column){
+    Cursor c=database.rawQuery("PRAGMA table_info("+table+")",null);boolean exists=false;
+    while(c.moveToNext()){if(column.equalsIgnoreCase(c.getString(1))){exists=true;break;}}
+    c.close();return exists;
+  }
+  void copyFile(File source,File destination)throws IOException{
+    File parent=destination.getParentFile();if(parent!=null&&!parent.exists()&&!parent.mkdirs())throw new IOException("تعذر إنشاء مجلد قاعدة البيانات");
+    try(InputStream in=new FileInputStream(source);OutputStream out=new FileOutputStream(destination)){
+      byte[] buffer=new byte[16384];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);out.flush();
+    }
+  }
   void restoreDatabase(Uri uri){
     File temp=new File(getCacheDir(),"restore_invoice_book.db");
+    File target=getDatabasePath("invoice_book.db");
+    File safety=new File(getCacheDir(),"invoice_book_before_restore.db");
+    boolean hadTarget=target.exists(),replaced=false,backupReady=false;
     try{
       try(InputStream in=getContentResolver().openInputStream(uri);OutputStream out=new FileOutputStream(temp)){
-        if(in==null)throw new IOException("تعذر قراءة ملف النسخة");byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);
+        if(in==null)throw new IOException("تعذر قراءة الملف المحدد");
+        byte[] buffer=new byte[16384];int n;while((n=in.read(buffer))!=-1)out.write(buffer,0,n);out.flush();
       }
       SQLiteDatabase check=SQLiteDatabase.openDatabase(temp.getAbsolutePath(),null,SQLiteDatabase.OPEN_READONLY);
-      Cursor verify=check.rawQuery("SELECT name FROM sqlite_master WHERE type='table' AND name='invoices'",null);boolean valid=verify.moveToFirst();verify.close();check.close();
-      if(!valid)throw new IOException("ملف النسخة غير صالح");
-      if(db!=null&&db.isOpen())db.close();
-      File target=getDatabasePath("invoice_book.db");
-      new File(target.getAbsolutePath()+"-wal").delete();new File(target.getAbsolutePath()+"-shm").delete();
-      try(InputStream in=new FileInputStream(temp);OutputStream out=new FileOutputStream(target)){byte[] buffer=new byte[8192];int n;while((n=in.read(buffer))>0)out.write(buffer,0,n);out.flush();}
-      openDatabaseAgain();temp.delete();buildUi();toast("تمت استعادة النسخة الاحتياطية");
-    }catch(Exception e){temp.delete();openDatabaseAgain();toast("فشلت الاستعادة؛ لم يتم قبول ملف غير صالح");}
+      boolean valid=false;String integrity="";
+      Cursor integrityCursor=check.rawQuery("PRAGMA integrity_check",null);
+      if(integrityCursor.moveToFirst())integrity=integrityCursor.getString(0);
+      integrityCursor.close();
+      boolean hasInvoices=tableExists(check,"invoices")
+        &&columnExists(check,"invoices","customer")
+        &&columnExists(check,"invoices","date")
+        &&columnExists(check,"invoices","total")
+        &&columnExists(check,"invoices","paid")
+        &&columnExists(check,"invoices","details");
+      boolean hasLegacy=tableExists(check,"customers")&&tableExists(check,"transactions")
+        &&columnExists(check,"customers","ID")&&columnExists(check,"customers","name")
+        &&columnExists(check,"transactions","ID")&&columnExists(check,"transactions","cus_id")
+        &&columnExists(check,"transactions","in")&&columnExists(check,"transactions","out")
+        &&columnExists(check,"transactions","date_")&&columnExists(check,"transactions","remarks");
+      long legacyCount=0,customerCount=0;
+      if(hasLegacy){
+        Cursor tc=check.rawQuery("SELECT COUNT(*) FROM transactions",null);if(tc.moveToFirst())legacyCount=tc.getLong(0);tc.close();
+        Cursor cc=check.rawQuery("SELECT COUNT(*) FROM customers",null);if(cc.moveToFirst())customerCount=cc.getLong(0);cc.close();
+      }
+      valid="ok".equalsIgnoreCase(integrity)&&(hasInvoices||hasLegacy);
+      check.close();
+      if(!valid)throw new IOException("الملف ليس قاعدة فواتير معروفة أو قاعدة عملاء وحركات صالحة");
+      if(hasLegacy&&legacyCount==0&&!hasInvoices)throw new IOException("قاعدة البيانات لا تحتوي على حركات قابلة للاسترجاع");
+      if(db!=null&&db.isOpen()){db.execSQL("PRAGMA wal_checkpoint(FULL)");db.close();}
+      db=null;
+      if(hadTarget&&target.exists()){copyFile(target,safety);backupReady=true;}
+      new File(target.getAbsolutePath()+"-wal").delete();
+      new File(target.getAbsolutePath()+"-shm").delete();
+      copyFile(temp,target);replaced=true;
+      openDatabaseAgain();
+      if(hasLegacy){
+        Cursor imported=db.rawQuery("SELECT COUNT(*) FROM invoices WHERE source_tx_id IS NOT NULL",null);
+        long importedCount=0;if(imported.moveToFirst())importedCount=imported.getLong(0);imported.close();
+        if(importedCount<legacyCount)throw new IOException("لم يتم استيراد جميع الحركات: "+importedCount+" من "+legacyCount);
+        toast("تم استرجاع القاعدة بنجاح: "+customerCount+" عميلًا و"+legacyCount+" حركة");
+      }else{
+        toast("تمت استعادة قاعدة الفواتير بنجاح");
+      }
+      temp.delete();safety.delete();
+      buildUi();
+    }catch(Exception e){
+      try{
+        if(db!=null&&db.isOpen())db.close();db=null;
+        if(replaced&&backupReady&&safety.exists()){
+          new File(target.getAbsolutePath()+"-wal").delete();new File(target.getAbsolutePath()+"-shm").delete();
+          copyFile(safety,target);
+        }else if(replaced&&!hadTarget){target.delete();}
+      }catch(Exception ignored){}
+      try{openDatabaseAgain();}catch(Exception ignored){}
+      temp.delete();safety.delete();
+      toast("فشلت الاستعادة: "+(e.getMessage()==null?"تعذر قراءة القاعدة":e.getMessage())+"؛ تم الحفاظ على البيانات السابقة إن وجدت");
+    }
   }
   void openDatabaseAgain(){
-    if(db!=null&&db.isOpen())return;
-    db=openOrCreateDatabase("invoice_book.db",MODE_PRIVATE,null);
+    if(db==null||!db.isOpen())db=openOrCreateDatabase("invoice_book.db",MODE_PRIVATE,null);
+    ensureInvoiceSchemaAndImport();
+  }
+  void ensureInvoiceSchemaAndImport(){
     db.execSQL("CREATE TABLE IF NOT EXISTS invoices(id INTEGER PRIMARY KEY AUTOINCREMENT, customer TEXT, date TEXT, total REAL, paid REAL, details TEXT)");
+    if(!columnExists(db,"invoices","source_tx_id"))db.execSQL("ALTER TABLE invoices ADD COLUMN source_tx_id INTEGER");
+    db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS idx_invoices_source_tx_id ON invoices(source_tx_id)");
+    if(!tableExists(db,"customers")||!tableExists(db,"transactions"))return;
+    if(!columnExists(db,"customers","ID")||!columnExists(db,"customers","name")
+      ||!columnExists(db,"transactions","ID")||!columnExists(db,"transactions","cus_id")
+      ||!columnExists(db,"transactions","in")||!columnExists(db,"transactions","out")
+      ||!columnExists(db,"transactions","date_")||!columnExists(db,"transactions","remarks"))return;
+    db.beginTransaction();
+    Cursor cur=null;
+    try{
+      cur=db.rawQuery("SELECT t.ID,COALESCE(NULLIF(TRIM(c.name),''),'عميل رقم '||t.cus_id),t.\"in\",t.\"out\",t.date_,t.remarks,t.now_,t.param2,t.curr_id,COALESCE(curr.name,'') FROM transactions t LEFT JOIN customers c ON CAST(t.cus_id AS INTEGER)=c.ID LEFT JOIN currency curr ON curr.ID=CAST(t.curr_id AS INTEGER) ORDER BY t.ID ASC",null);
+      while(cur.moveToNext()){
+        long sourceId=cur.getLong(0);
+        String customerName=cur.getString(1);
+        double direction=0,amount=0;
+        try{direction=Double.parseDouble(cur.getString(2)==null?"0":cur.getString(2).trim());}catch(Exception ignored){}
+        try{amount=Double.parseDouble(cur.getString(3)==null?"0":cur.getString(3).trim().replace(",",""));}catch(Exception ignored){}
+        if(amount<0)amount=Math.abs(amount);
+        String dateValue=cur.getString(4)==null?"":cur.getString(4).trim();
+        String timeValue=cur.getString(7)==null?"":cur.getString(7).trim();
+        if(timeValue.isEmpty())timeValue=cur.getString(6)==null?"":cur.getString(6).trim();
+        String dateText=dateValue+(timeValue.isEmpty()?"":" • "+timeValue);
+        String details=cur.getString(5)==null?"":cur.getString(5).trim();
+        int currencyId=cur.isNull(8)?0:cur.getInt(8);
+        String currencyName=cur.getString(9)==null?"":cur.getString(9).trim();
+        if(currencyId!=0&&!currencyName.isEmpty())details+=(details.isEmpty()?"":" • ")+"العملة: "+currencyName;
+        ContentValues v=new ContentValues();
+        v.put("source_tx_id",sourceId);v.put("customer",customerName);v.put("date",dateText);
+        v.put("total",direction>=0?amount:0d);v.put("paid",direction<0?amount:0d);v.put("details",details);
+        db.insertWithOnConflict("invoices",null,v,SQLiteDatabase.CONFLICT_IGNORE);
+      }
+      cur.close();cur=null;
+      db.setTransactionSuccessful();
+    }finally{
+      if(cur!=null)cur.close();
+      db.endTransaction();
+    }
   }
   void buildUi(){
     isHome=true;currentScreen="home";
