@@ -20,6 +20,8 @@ public class MainActivity extends Activity {
   EditText total, qty, item, customer, paid;
   TextView unit, rows, summary;
   SQLiteDatabase db;
+  static class InvoiceItem { String name; double qty,total; InvoiceItem(String n,double q,double t){name=n;qty=q;total=t;} }
+  ArrayList<InvoiceItem> invoiceItems = new ArrayList<>();
   StringBuilder invoice = new StringBuilder();
   double invoiceTotal=0; int rowCount=0;
   int dp(float v){return (int)(v*getResources().getDisplayMetrics().density+0.5f);}
@@ -33,8 +35,8 @@ public class MainActivity extends Activity {
   LinearLayout column(){LinearLayout l=new LinearLayout(this);l.setOrientation(1);l.setPadding(dp(12),dp(8),dp(12),dp(8));return l;}
   void buildUi(){
     ScrollView scroll=new ScrollView(this); LinearLayout root=column();root.setBackgroundColor(Color.rgb(247,248,244));scroll.addView(root);
-    TextView title=text("فاتورتي الحرارية",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
-    TextView subtitle=text("إدخال سريع • حساب عميل • PDF • صورة • طباعة",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
+    TextView title=text("فواتيري حق البيع والشراء",24);title.setTextColor(Color.rgb(23,74,61));title.setGravity(Gravity.CENTER);title.setTypeface(null,1);root.addView(title);
+    TextView subtitle=text("بيع وشراء • حسابات العملاء • طباعة وPDF وصورة",13);subtitle.setGravity(Gravity.CENTER);root.addView(subtitle);
     customer=field("اسم العميل (اختياري)", android.text.InputType.TYPE_CLASS_TEXT);root.addView(customer);
     LinearLayout first=new LinearLayout(this);first.setOrientation(LinearLayout.HORIZONTAL);
     total=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);first.addView(total,new LinearLayout.LayoutParams(0,dp(52),1));
@@ -44,7 +46,8 @@ public class MainActivity extends Activity {
     unit=text("سعر الوحدة —",15);unit.setGravity(Gravity.CENTER);second.addView(unit,new LinearLayout.LayoutParams(0,dp(52),1));root.addView(second);
     total.addTextChangedListener(watch());qty.addTextChangedListener(watch());
     Button add=button("إضافة الصنف");root.addView(add);add.setOnClickListener(v->addItem());
-    rows=text("تفاصيل الفاتورة",15);rows.setPadding(0,dp(8),0,dp(8));root.addView(rows);
+    rows=text("الأصناف المسجلة — اضغط على أي صف لتعديله",14);rows.setPadding(0,dp(8),0,dp(8));root.addView(rows);
+    renderInvoiceRows(root);
     summary=text("الإجمالي: 0",18);summary.setTypeface(null,1);root.addView(summary);
     paid=field("المبلغ المدفوع",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);root.addView(paid);
     LinearLayout actions=new LinearLayout(this);actions.setOrientation(LinearLayout.VERTICAL);
@@ -59,7 +62,15 @@ public class MainActivity extends Activity {
   }
   android.text.TextWatcher watch(){return new android.text.TextWatcher(){public void beforeTextChanged(CharSequence s,int a,int c,int f){}public void onTextChanged(CharSequence s,int st,int before,int count){try{double t=Double.parseDouble(total.getText().toString()),q=Double.parseDouble(qty.getText().toString());unit.setText(q==0?"سعر الوحدة —":String.format(Locale.US,"%.2f",t/q));}catch(Exception e){unit.setText("سعر الوحدة —");}}public void afterTextChanged(android.text.Editable e){}};}
   Button button(String s){Button b=new Button(this);b.setText(s);b.setTextColor(Color.WHITE);b.setBackgroundTintList(android.content.res.ColorStateList.valueOf(Color.rgb(23,74,61)));LinearLayout.LayoutParams p=new LinearLayout.LayoutParams(-1,dp(46));p.setMargins(0,dp(3),0,dp(3));b.setLayoutParams(p);return b;}
-  void addItem(){try{double t=Double.parseDouble(total.getText().toString()),q=Double.parseDouble(qty.getText().toString());String n=item.getText().toString().trim();if(n.isEmpty()||q<=0||t<0){toast("أدخل الصنف والكمية والإجمالي");return;}double u=t/q;invoice.append(n).append("  |  ").append(q).append(" × ").append(String.format(Locale.US,"%.2f",u)).append(" = ").append(String.format(Locale.US,"%.2f",t)).append("\n");invoiceTotal+=t;rowCount++;rows.setText(invoice.toString());summary.setText("الإجمالي: "+money(invoiceTotal)+"  •  الأصناف: "+rowCount);total.setText("");qty.setText("");item.setText("");}catch(Exception e){toast("تحقق من الإجمالي والكمية");}}
+  void addItem(){try{double t=Double.parseDouble(total.getText().toString().replace(",","")),q=Double.parseDouble(qty.getText().toString().replace(",",""));String n=item.getText().toString().trim();if(n.isEmpty()||q<=0||t<0){toast("أدخل الصنف والكمية والإجمالي");return;}invoiceItems.add(new InvoiceItem(n,q,t));rebuildInvoice();total.setText("");qty.setText("");item.setText("");renderInvoiceRows(null);}catch(Exception e){toast("تحقق من الإجمالي والكمية");}}
+  void rebuildInvoice(){invoice.setLength(0);invoiceTotal=0;rowCount=invoiceItems.size();for(InvoiceItem it:invoiceItems){double u=it.qty==0?0:it.total/it.qty;invoice.append(money(it.total)).append("  |  ").append(it.qty).append("  |  ").append(it.name).append("  |  ").append(money(u)).append("\\n");invoiceTotal+=it.total;}if(rows!=null)rows.setText("الأصناف المسجلة ("+rowCount+") — اضغط على الصف للتعديل");if(summary!=null)summary.setText("الإجمالي: "+money(invoiceTotal)+"  •  الأصناف: "+rowCount);}
+  void renderInvoiceRows(LinearLayout host){if(host!=null){LinearLayout table=new LinearLayout(this);table.setOrientation(1);table.setTag("invoice_items_table");host.addView(table,new LinearLayout.LayoutParams(-1,-2));populateInvoiceTable(table);}}
+  
+  void editInvoiceItem(int index){if(index<0||index>=invoiceItems.size())return;InvoiceItem it=invoiceItems.get(index);LinearLayout form=column();EditText eTotal=field("الإجمالي",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);eTotal.setText(String.valueOf(it.total));EditText eQty=field("الكمية / العدد",android.text.InputType.TYPE_CLASS_NUMBER|android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);eQty.setText(String.valueOf(it.qty));EditText eName=field("تفاصيل الصنف",android.text.InputType.TYPE_CLASS_TEXT);eName.setText(it.name);form.addView(eTotal);form.addView(eQty);form.addView(eName);new AlertDialog.Builder(this).setTitle("تعديل الصنف").setView(form).setNegativeButton("إلغاء",null).setNeutralButton("حذف الصنف",(d,w)->{invoiceItems.remove(index);rebuildInvoice();refreshInvoiceRows();}).setPositiveButton("حفظ التعديل",(d,w)->{try{double t=Double.parseDouble(eTotal.getText().toString().replace(",","")),q=Double.parseDouble(eQty.getText().toString().replace(",",""));String n=eName.getText().toString().trim();if(q<=0||t<0||n.isEmpty()){toast("تحقق من التفاصيل والكمية والإجمالي");return;}it.total=t;it.qty=q;it.name=n;rebuildInvoice();refreshInvoiceRows();toast("تم تعديل الصنف");}catch(Exception ex){toast("تحقق من القيم المدخلة");}}).show();}
+  void refreshInvoiceRows(){View v=findTable(getWindow().getDecorView());if(v instanceof LinearLayout){LinearLayout table=(LinearLayout)v;table.removeAllViews();populateInvoiceTable(table);}}
+  View findTable(View v){if("invoice_items_table".equals(v.getTag()))return v;if(v instanceof ViewGroup){ViewGroup g=(ViewGroup)v;for(int i=0;i<g.getChildCount();i++){View r=findTable(g.getChildAt(i));if(r!=null)return r;}}return null;}
+  void populateInvoiceTable(LinearLayout table){LinearLayout header=new LinearLayout(this);header.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);header.setBackgroundColor(Color.rgb(23,74,61));String[] labels={"الإجمالي","الكمية","التفاصيل","سعر الوحدة"};float[] weights={1.05f,.8f,1.55f,1.05f};for(int i=0;i<labels.length;i++){TextView t=text(labels[i],11);t.setTextColor(Color.WHITE);t.setTypeface(null,1);t.setGravity(Gravity.CENTER);header.addView(t,new LinearLayout.LayoutParams(0,dp(38),weights[i]));}table.addView(header);for(int i=0;i<invoiceItems.size();i++){final int ix=i;InvoiceItem it=invoiceItems.get(i);LinearLayout row=new LinearLayout(this);row.setLayoutDirection(View.LAYOUT_DIRECTION_RTL);row.setGravity(Gravity.CENTER_VERTICAL);row.setBackgroundColor(i%2==0?Color.WHITE:Color.rgb(235,241,237));String[] values={money(it.total),String.valueOf(it.qty),it.name,money(it.qty==0?0:it.total/it.qty)};for(int j=0;j<values.length;j++){TextView t=text(values[j],12);t.setGravity(Gravity.CENTER);t.setMaxLines(2);t.setEllipsize(android.text.TextUtils.TruncateAt.END);row.addView(t,new LinearLayout.LayoutParams(0,dp(46),weights[j]));}row.setOnClickListener(v->editInvoiceItem(ix));table.addView(row);View line=new View(this);line.setBackgroundColor(Color.rgb(190,205,197));table.addView(line,new LinearLayout.LayoutParams(-1,dp(1)));}}
+
   String money(double d){return String.format(Locale.US,"%,.2f",d);}
   String date(){return new SimpleDateFormat("yyyy-MM-dd HH:mm",Locale.getDefault()).format(new Date());}
   String receiptText(){String c=customer.getText().toString().trim();if(c.isEmpty())c="عميل نقدي";double p=0;try{p=Double.parseDouble(paid.getText().toString());}catch(Exception e){}return "        بقالة / فاتورتي\n------------------------------\nالعميل: "+c+"\nالتاريخ: "+date()+"\n------------------------------\n"+invoice+"------------------------------\nالإجمالي: "+money(invoiceTotal)+"\nالمدفوع: "+money(p)+"\nالمتبقي: "+money(invoiceTotal-p)+"\n";}
