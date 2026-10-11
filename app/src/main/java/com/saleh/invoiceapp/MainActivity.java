@@ -36,6 +36,7 @@ public class MainActivity extends Activity {
   @Override public void onBackPressed(){
     if(!isHome){
       if("account".equals(currentScreen)){showHistory();return;}
+      if("invoiceDetails".equals(currentScreen)){showInvoiceHistory();return;}
       buildUi();return;
     }
     new AlertDialog.Builder(this)
