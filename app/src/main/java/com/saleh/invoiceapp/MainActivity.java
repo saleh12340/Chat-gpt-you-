@@ -7,6 +7,7 @@ import android.database.Cursor;
 import android.database.sqlite.*;
 import android.graphics.*;
 import android.graphics.pdf.PdfDocument;
+import android.print.*;
 import android.net.Uri;
 import android.provider.MediaStore;
 import android.view.*;
